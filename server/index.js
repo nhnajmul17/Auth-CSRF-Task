@@ -52,6 +52,14 @@ const requireCsrfToken = (req, res, next) => {
   return next();
 };
 
+const requireLoggedIn = (req, res, next) => {
+  if (!req.session?.user) {
+    return res.status(401).json({ message: "Login required" });
+  }
+
+  return next();
+};
+
 app.get("/api/health", (req, res) => {
   return res.json({ ok: true });
 });
@@ -72,10 +80,12 @@ app.post("/api/login", requireCsrfToken, (req, res) => {
   const sessionRecord = sessions.get(req.session.sessionId);
   sessionRecord.user = { email };
   sessionRecord.csrfToken = crypto.randomBytes(16).toString("hex");
+  sessionRecord.authToken = crypto.randomBytes(12).toString("hex");
 
   setSessionCookie(res, req.session.sessionId);
   return res.json({
     user: sessionRecord.user,
+    token: sessionRecord.authToken,
     csrfToken: sessionRecord.csrfToken,
   });
 });
@@ -84,6 +94,10 @@ app.post("/api/logout", requireCsrfToken, (req, res) => {
   sessions.delete(req.session.sessionId);
   res.clearCookie("session_id", { path: "/" });
   return res.json({ ok: true });
+});
+
+app.post("/api/transfer", requireCsrfToken, requireLoggedIn, (req, res) => {
+  return res.json({ ok: true, message: "Transfer accepted" });
 });
 
 app.listen(port, () => {
